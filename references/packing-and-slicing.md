@@ -67,22 +67,27 @@ Do not “solve” bad anatomy or bad slicing by shrinking everything until it f
 
 Run the validator after packing.
 
-Hard blockers:
+Hard blockers (errors):
 
-- wrong dimensions
+- wrong sheet dimensions
 - empty frame
-- missing alpha where a frame should exist
+- spritesheet has no transparent pixels (background was not removed)
+- malformed `pet.json` — missing required fields, wrong types, absolute or traversing `spritesheetPath`
 
 Warnings that still need visual review:
 
+- a single frame is fully opaque
 - edge contact
 - high row width drift
 - high row height drift
+- `spritesheetPath` in `pet.json` does not match the sheet under validation
+- `id` in `pet.json` differs from the parent directory name
 
 Interpretation:
 
 - edge contact usually means crop risk
-- width/height drift can be acceptable if the action truly changes shape, but it still needs visual confirmation
+- width/height drift can be acceptable if the action truly changes shape, but still needs visual confirmation
+- a fully-opaque frame is almost always a missing alpha-cleanup step, not a creative choice
 
 ## Install Discipline
 

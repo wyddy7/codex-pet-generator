@@ -61,12 +61,32 @@ def validate_pet_json(
 
     sheet_field = data.get("spritesheetPath")
     if isinstance(sheet_field, str) and sheet_field:
-        resolved = (pet_json_path.parent / sheet_field).resolve()
-        if resolved != spritesheet_path.resolve():
-            warnings.append(
-                f"pet.json: spritesheetPath points to {resolved}, "
-                f"but the sheet under validation is {spritesheet_path.resolve()}"
+        as_path = Path(sheet_field)
+        pet_dir = pet_json_path.parent.resolve()
+        if as_path.is_absolute():
+            errors.append(
+                f"pet.json: spritesheetPath must be a relative filename inside the "
+                f"pet directory, not an absolute path ({sheet_field!r})"
             )
+        elif as_path.name != sheet_field or ".." in as_path.parts:
+            errors.append(
+                f"pet.json: spritesheetPath must be a single filename inside the "
+                f"pet directory, not a nested or traversing path ({sheet_field!r})"
+            )
+        else:
+            resolved = (pet_dir / sheet_field).resolve()
+            try:
+                resolved.relative_to(pet_dir)
+            except ValueError:
+                errors.append(
+                    f"pet.json: spritesheetPath resolves outside the pet directory "
+                    f"({resolved})"
+                )
+            if resolved != spritesheet_path.resolve():
+                warnings.append(
+                    f"pet.json: spritesheetPath points to {resolved}, "
+                    f"but the sheet under validation is {spritesheet_path.resolve()}"
+                )
 
     pet_id = data.get("id")
     parent_dir = pet_json_path.parent.name

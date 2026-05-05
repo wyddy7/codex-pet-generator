@@ -161,18 +161,37 @@ def pack_sheet(rows_root: Path, output_path: Path, padding: int) -> None:
             canvas.alpha_composite(sprite, (x, y))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    if output_path.suffix.lower() == ".png":
+    suffix = output_path.suffix.lower()
+    if suffix == ".png":
         canvas.save(output_path, lossless=True)
-    else:
+    elif suffix == ".webp":
         canvas.save(output_path, format="WEBP", lossless=True, quality=100)
+    else:
+        raise ValueError(
+            f"output extension {suffix or '<none>'!r} is not supported; "
+            f"use .png or .webp"
+        )
+
+
+MAX_PADDING = min(FRAME_WIDTH, FRAME_HEIGHT) // 2 - 1
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("rows_root", type=Path, help="Directory containing 9 row folders")
-    parser.add_argument("output", type=Path, help="Output spritesheet path (.webp or .png)")
-    parser.add_argument("--padding", type=int, default=10)
-    return parser.parse_args()
+    parser.add_argument("output", type=Path, help="Output spritesheet path (.png or .webp)")
+    parser.add_argument(
+        "--padding",
+        type=int,
+        default=10,
+        help=f"Edge padding inside each cell, in pixels (recommended 8-12, max {MAX_PADDING})",
+    )
+    args = parser.parse_args()
+    if not 0 <= args.padding <= MAX_PADDING:
+        parser.error(
+            f"--padding must be between 0 and {MAX_PADDING}, got {args.padding}"
+        )
+    return args
 
 
 def main() -> int:

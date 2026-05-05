@@ -1,6 +1,6 @@
 ---
 name: "codex-pet-generator"
-description: "Create Codex desktop pets from character references by defining row semantics, generating tiny-UI-readable loops, approving or rejecting rows, slicing safely, packing a 1536x1872 spritesheet, and installing it under ~/.codex/pets."
+description: "Create Codex desktop pets from character references by defining row semantics, generating tiny-UI-readable loops, approving or rejecting rows, following slicing guidance, packing a 1536x1872 spritesheet with the bundled packer, validating it, and installing under ~/.codex/pets."
 license: "MIT"
 ---
 
@@ -73,9 +73,9 @@ For row-by-row semantics, common failure modes, and tiny-UI design guidance, rea
 4. Generate one row strip at a time, or individual frames. Do not generate a full 72-frame sheet as the final asset.
 5. Review each row with the acceptance ladder in [references/acceptance-checklist.md](references/acceptance-checklist.md).
 6. Mark every candidate `approved` or `unapproved`. Only approved rows advance.
-7. Slice frames carefully. Read [references/packing-and-slicing.md](references/packing-and-slicing.md) before cutting strips into frames.
-8. Pack with the bundled scripts.
-9. Run the validator.
+7. Extract individual frames into per-row directories. The skill provides written slicing guidance in [references/packing-and-slicing.md](references/packing-and-slicing.md), but the actual extraction is manual — either export frames directly from the generator, or cut strips with your image tool of choice. The bundled packer assumes per-frame inputs and does not slice strips for you.
+8. Pack with `scripts/pack_codex_pet.py`.
+9. Validate with `scripts/validate_codex_pet.py`.
 10. Install into `~/.codex/pets/<pet-id>`.
 11. When iterating in the Codex UI, use a new pet id such as `<pet-id>-v2` to avoid cached spritesheets.
 
@@ -126,14 +126,16 @@ The acceptance ladder and rejection patterns live in [references/acceptance-chec
 
 ## Slicing and Packing Rules
 
+Slicing is **manual** — the skill provides guidance, not an automated slicer. The packer takes per-frame inputs and assembles them into the final sheet using one uniform scale per row.
+
 - Do not assume a generated row strip is cut into 8 equal visual columns.
 - Do not slice approved strips into equal widths unless the spacing is known to be uniform.
-- Prefer per-frame export or gap-aware slicing based on real empty space between poses.
-- Use one scale per row during packing, not one scale per frame.
-- Keep at least `8-12px` of padding from cell edges.
+- Prefer per-frame export or gap-aware manual slicing based on real empty space between poses.
+- The packer uses one scale per row, not one scale per frame.
+- Keep at least `8-12px` of padding from cell edges (packer default is `10`, hard cap is half-cell-minus-one).
 - Keep exactly one directory per row index inside the rows root. Multiple matching directories (`01-idle-explore`, `01-idle-final`) cause the packer to abort instead of silently picking one — this protects the approval gate.
 
-See [references/packing-and-slicing.md](references/packing-and-slicing.md) for the safe slicing workflow.
+See [references/packing-and-slicing.md](references/packing-and-slicing.md) for manual slicing workflow guidance.
 
 ## Bundled Scripts
 
