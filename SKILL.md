@@ -131,6 +131,7 @@ The acceptance ladder and rejection patterns live in [references/acceptance-chec
 - Prefer per-frame export or gap-aware slicing based on real empty space between poses.
 - Use one scale per row during packing, not one scale per frame.
 - Keep at least `8-12px` of padding from cell edges.
+- Keep exactly one directory per row index inside the rows root. Multiple matching directories (`01-idle-explore`, `01-idle-final`) cause the packer to abort instead of silently picking one — this protects the approval gate.
 
 See [references/packing-and-slicing.md](references/packing-and-slicing.md) for the safe slicing workflow.
 
@@ -148,12 +149,14 @@ Validate the final sheet:
 python scripts/validate_codex_pet.py <spritesheet.webp>
 ```
 
+If `pet.json` sits next to the spritesheet, the validator picks it up automatically and checks the install contract (`id`, `displayName`, `description`, `spritesheetPath`). To validate against a `pet.json` in a different location use `--pet-json <path>`. To skip pet.json entirely use `--no-pet-json`.
+
 Both scripts require `Pillow`. Install with `pip install -r requirements.txt`. Run from the bundle root, or use absolute paths.
 
 Interpretation rule:
 
-- validator `errors` are hard blockers
-- validator `warnings` still require visual review
+- validator `errors` are hard blockers — wrong dimensions, empty frames, missing alpha, fully-opaque sheet, malformed `pet.json`
+- validator `warnings` still require visual review — fully-opaque single frame, edge contact, width/height drift, `spritesheetPath` mismatch
 - width or height drift warnings may reflect real performance changes, but edge-contact warnings usually mean crop risk
 
 ## Install Notes

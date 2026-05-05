@@ -81,6 +81,13 @@ def discover_row_dir(rows_root: Path, row_index: int, row_name: str) -> Path:
         raise FileNotFoundError(
             f"missing row directory for row {row_index + 1} ({row_name})"
         )
+    if len(candidates) > 1:
+        names = ", ".join(path.name for path in candidates)
+        raise ValueError(
+            f"row {row_index + 1} ({row_name}) is ambiguous — multiple directories "
+            f"match prefix {expected_prefix!r}: {names}. "
+            f"Keep only the approved variant in {rows_root} and move the rest aside."
+        )
     return candidates[0]
 
 

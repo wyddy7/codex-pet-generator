@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Validate the mechanical parts of a Codex pet spritesheet.
+"""Validate the mechanical parts of a Codex pet spritesheet and pet.json.
 
 This cannot prove anatomy is correct. It catches the boring failures that make
-the Codex UI drift: wrong dimensions, empty frames, missing alpha, edge contact,
-and row-scale instability.
+the Codex UI drift: wrong dimensions, empty frames, missing alpha, opaque
+backgrounds, edge contact, row-scale instability, and a malformed pet.json.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -21,9 +22,61 @@ ROWS = 9
 FRAME_WIDTH = SHEET_WIDTH // COLS
 FRAME_HEIGHT = SHEET_HEIGHT // ROWS
 
+PET_JSON_REQUIRED_FIELDS = ("id", "displayName", "description", "spritesheetPath")
+
 
 def alpha_bbox(frame: Image.Image) -> tuple[int, int, int, int] | None:
     return frame.getchannel("A").getbbox()
+
+
+def alpha_extrema(frame: Image.Image) -> tuple[int, int]:
+    return frame.getchannel("A").getextrema()
+
+
+def validate_pet_json(
+    pet_json_path: Path, spritesheet_path: Path
+) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if not pet_json_path.is_file():
+        errors.append(f"pet.json not found at {pet_json_path}")
+        return errors, warnings
+
+    try:
+        data = json.loads(pet_json_path.read_text())
+    except json.JSONDecodeError as exc:
+        errors.append(f"pet.json: invalid JSON ({exc})")
+        return errors, warnings
+
+    if not isinstance(data, dict):
+        errors.append("pet.json: top-level value must be an object")
+        return errors, warnings
+
+    for field in PET_JSON_REQUIRED_FIELDS:
+        if field not in data:
+            errors.append(f"pet.json: missing required field {field!r}")
+        elif not isinstance(data[field], str) or not data[field].strip():
+            errors.append(f"pet.json: field {field!r} must be a non-empty string")
+
+    sheet_field = data.get("spritesheetPath")
+    if isinstance(sheet_field, str) and sheet_field:
+        resolved = (pet_json_path.parent / sheet_field).resolve()
+        if resolved != spritesheet_path.resolve():
+            warnings.append(
+                f"pet.json: spritesheetPath points to {resolved}, "
+                f"but the sheet under validation is {spritesheet_path.resolve()}"
+            )
+
+    pet_id = data.get("id")
+    parent_dir = pet_json_path.parent.name
+    if isinstance(pet_id, str) and pet_id and parent_dir and pet_id != parent_dir:
+        warnings.append(
+            f"pet.json: id {pet_id!r} differs from parent directory {parent_dir!r}; "
+            f"Codex resolves pets by the directory name under ~/.codex/pets/"
+        )
+
+    return errors, warnings
 
 
 def main() -> int:
@@ -31,6 +84,17 @@ def main() -> int:
     parser.add_argument("spritesheet", type=Path)
     parser.add_argument("--edge-padding", type=int, default=6)
     parser.add_argument("--max-row-height-drift", type=float, default=0.28)
+    parser.add_argument(
+        "--pet-json",
+        type=Path,
+        default=None,
+        help="Path to pet.json. Defaults to <spritesheet-dir>/pet.json if present.",
+    )
+    parser.add_argument(
+        "--no-pet-json",
+        action="store_true",
+        help="Skip pet.json validation entirely.",
+    )
     args = parser.parse_args()
 
     image = Image.open(args.spritesheet).convert("RGBA")
@@ -40,6 +104,12 @@ def main() -> int:
     if image.size != (SHEET_WIDTH, SHEET_HEIGHT):
         errors.append(
             f"expected {SHEET_WIDTH}x{SHEET_HEIGHT}, got {image.width}x{image.height}"
+        )
+
+    sheet_alpha_min, sheet_alpha_max = alpha_extrema(image)
+    if sheet_alpha_min == 255 and sheet_alpha_max == 255:
+        errors.append(
+            "spritesheet has no transparent pixels; background was not removed"
         )
 
     for row in range(ROWS):
@@ -58,6 +128,13 @@ def main() -> int:
             x0, y0, x1, y1 = bbox
             widths.append(x1 - x0)
             heights.append(y1 - y0)
+
+            frame_alpha_min, _ = alpha_extrema(frame)
+            if frame_alpha_min == 255:
+                warnings.append(
+                    f"{label}: frame is fully opaque; either the cell is filled "
+                    f"edge-to-edge or the background was not removed"
+                )
 
             if (
                 x0 < args.edge_padding
@@ -85,6 +162,18 @@ def main() -> int:
                     f"(min={min_w}, max={max_w})"
                 )
 
+    if not args.no_pet_json:
+        pet_json_path = args.pet_json or (args.spritesheet.parent / "pet.json")
+        if pet_json_path.exists() or args.pet_json is not None:
+            pj_errors, pj_warnings = validate_pet_json(pet_json_path, args.spritesheet)
+            errors.extend(pj_errors)
+            warnings.extend(pj_warnings)
+        else:
+            warnings.append(
+                f"pet.json not found next to spritesheet; pass --pet-json to validate "
+                f"the install contract or --no-pet-json to suppress this warning"
+            )
+
     if errors:
         print("ERRORS")
         for error in errors:
@@ -102,4 +191,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
