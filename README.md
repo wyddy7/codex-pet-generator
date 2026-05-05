@@ -1,7 +1,7 @@
 # Codex Pet Generator
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/60091f04-c277-4758-8a32-ffa90781aa21" controls width="720"></video>
+  <img src="assets/demo.gif" alt="Codex Pet Generator — workflow and final pet running in Codex UI" width="600">
 </p>
 
 Reusable skill for building Codex desktop pets without getting trapped by broken full-sheet generations, unreadable micro-gestures, scale drift, or naive slicing.
